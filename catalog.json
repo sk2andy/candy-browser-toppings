@@ -46,12 +46,16 @@
       "description": "Centers Wikipedia articles at a comfortable reading width.",
       "author": "Candy Browser contributors",
       "license": "MIT",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "source": "toppings/wikipedia-reading-focus.user.js",
       "matches": [
-        "https://*.wikipedia.org/*"
+        "https://en.wikipedia.org/*",
+        "https://de.wikipedia.org/*",
+        "https://es.wikipedia.org/*",
+        "https://fr.wikipedia.org/*",
+        "https://pt.wikipedia.org/*"
       ],
-      "sha256": "7bdcdfe4d7ff788c6564bd0826e447f06f7e46028ecb869d279f4a4626b9b38c"
+      "sha256": "8210b8808fcd05a8f0c175d3fd214a2259b9579bf32628c56d399b6862fb4a00"
     },
     {
       "id": "youtube-no-shorts",

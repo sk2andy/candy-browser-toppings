@@ -1,9 +1,13 @@
 // ==UserScript==
 // @name Wikipedia Reading Focus
 // @description Centers Wikipedia articles at a comfortable reading width.
-// @version 1.0.0
+// @version 1.0.1
 // @license MIT
-// @match https://*.wikipedia.org/*
+// @match https://en.wikipedia.org/*
+// @match https://de.wikipedia.org/*
+// @match https://es.wikipedia.org/*
+// @match https://fr.wikipedia.org/*
+// @match https://pt.wikipedia.org/*
 // @run-at document-end
 // @grant none
 // ==/UserScript==

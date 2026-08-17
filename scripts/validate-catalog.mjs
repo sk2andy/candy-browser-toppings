@@ -111,7 +111,7 @@ function validMatchPattern(value) {
   if (!match) return false;
   const host = match[2].toLowerCase();
   if (host === "*") return false;
-  return validHostname(host.startsWith("*.") ? host.slice(2) : host);
+  return validHostname(host);
 }
 
 function validGlobPattern(value) {
@@ -125,7 +125,7 @@ function validGlobPattern(value) {
   const port = portSeparator >= 0 ? authority.slice(portSeparator + 1) : null;
   if (port !== null && (!/^\d+$/.test(port) || Number(port) < 1 || Number(port) > 65535)) return false;
   if (host === "*") return false;
-  return validHostname(host.startsWith("*.") ? host.slice(2) : host);
+  return validHostname(host);
 }
 
 function validateUserscript(source, entry) {

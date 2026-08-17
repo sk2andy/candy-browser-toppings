@@ -106,6 +106,20 @@ test("rejects catalog Toppings with an all-sites scope", async (t) => {
   await assert.rejects(validateCatalog(root), /invalid @match pattern/);
 });
 
+test("rejects wildcard hosts in the curated catalog", async (t) => {
+  for (const wildcardHost of ["*.example.com", "*.com", "*.co.uk"]) {
+    const source = VALID_SOURCE
+      .replace("example.com", wildcardHost)
+      .replace("// @include https://example.org/articles/*\n", "");
+    const root = await createFixture(t, {
+      source,
+      entry: entryFor(source, { matches: [`https://${wildcardHost}/*`] }),
+    });
+
+    await assert.rejects(validateCatalog(root), /invalid @match pattern/);
+  }
+});
+
 test("rejects unlisted userscript files", async (t) => {
   const root = await createFixture(t, {
     extraFiles: { "unlisted.user.js": VALID_SOURCE },

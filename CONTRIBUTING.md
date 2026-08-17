@@ -48,6 +48,8 @@ values, preserving their order. Entries in `catalog.json` must be sorted by `id`
 Candy rejects `@require`, `@resource`, `@downloadURL`, `@updateURL`, `@connect`, privileged
 grants, sources over 256 KiB, and catalogs over 128 entries. Match patterns do not support
 explicit ports; use a bounded `@include` when a non-default port is needed.
+The curated catalog accepts exact hosts only. List each intended host explicitly; wildcard hosts
+are rejected even though locally authored Toppings may use them.
 
 ## Review rules
 
