@@ -2,6 +2,22 @@
   "schemaVersion": 1,
   "toppings": [
     {
+      "id": "copy-code-button",
+      "name": "Copy Code Button",
+      "description": "Adds accessible copy buttons to code blocks that do not already have one.",
+      "author": "Candy Browser contributors",
+      "license": "MIT",
+      "version": "1.0.0",
+      "source": "toppings/copy-code-button.user.js",
+      "matches": [
+        "https://developer.android.com/*",
+        "https://developer.mozilla.org/*",
+        "https://docs.github.com/*",
+        "https://docs.gradle.org/*"
+      ],
+      "sha256": "9a47a75b15f7d3ccabef07b8912b1ad0fd733f0e23271dae6f047e3de724a4b1"
+    },
+    {
       "id": "github-readable-diffs",
       "name": "GitHub Readable Diffs",
       "description": "Makes pull-request diffs denser and easier to scan.",
@@ -15,6 +31,20 @@
       "sha256": "8326a21beaee1249d6f8f827f58daed43e70e23c13a947a13caf9ed620974867"
     },
     {
+      "id": "google-search-cleanup",
+      "name": "Google Search Cleanup",
+      "description": "Cleans tracking redirects and parameters from Google search-result links.",
+      "author": "Candy Browser contributors",
+      "license": "MIT",
+      "version": "1.0.0",
+      "source": "toppings/google-search-cleanup.user.js",
+      "matches": [
+        "https://www.google.com/search*",
+        "https://www.google.de/search*"
+      ],
+      "sha256": "0140c27cc751eba986d8cea112d43b6ab201db37015a0b292d1f99431078ccc3"
+    },
+    {
       "id": "hacker-news-comfort",
       "name": "Hacker News Comfort",
       "description": "Adds readable cards, larger type, and stronger tap targets to Hacker News.",
@@ -26,6 +56,50 @@
         "https://news.ycombinator.com/*"
       ],
       "sha256": "ad80f3537fb3524b5b175ee9d2581c10af857d2eabd05ed22cafb8ee5cb49e2c"
+    },
+    {
+      "id": "link-tracking-cleaner",
+      "name": "Link Tracking Cleaner",
+      "description": "Removes known tracking parameters from outbound links on selected sites.",
+      "author": "Candy Browser contributors",
+      "license": "MIT",
+      "version": "1.0.0",
+      "source": "toppings/link-tracking-cleaner.user.js",
+      "matches": [
+        "https://github.com/*",
+        "https://medium.com/*",
+        "https://news.ycombinator.com/*",
+        "https://old.reddit.com/*",
+        "https://www.reddit.com/*"
+      ],
+      "sha256": "4397da00d36bad1b120c72f769b5e2af066a5156fad4987684638742e75e6158"
+    },
+    {
+      "id": "medium-reading-focus",
+      "name": "Medium Reading Focus",
+      "description": "Removes sticky app and sign-up chrome from Medium articles without touching paywalls.",
+      "author": "Candy Browser contributors",
+      "license": "MIT",
+      "version": "1.0.0",
+      "source": "toppings/medium-reading-focus.user.js",
+      "matches": [
+        "https://medium.com/*"
+      ],
+      "sha256": "77792e667620f18baf141637a80792c215ac9802801b379003bcb2862f9e6879"
+    },
+    {
+      "id": "reddit-thread-comfort",
+      "name": "Reddit Thread Comfort",
+      "description": "Hides Reddit app prompts and makes mobile comment threads easier to read.",
+      "author": "Candy Browser contributors",
+      "license": "MIT",
+      "version": "1.0.0",
+      "source": "toppings/reddit-thread-comfort.user.js",
+      "matches": [
+        "https://www.reddit.com/*",
+        "https://reddit.com/*"
+      ],
+      "sha256": "990b348c9ea559336b121158a640d445aa4c306d0289deaeca04df16bdb6a2d1"
     },
     {
       "id": "youtube-no-shorts",
