@@ -87,6 +87,13 @@ test("rejects remote dependency metadata", async (t) => {
   await assert.rejects(validateCatalog(root), /@require is not supported/);
 });
 
+test("rejects a UTF-8 BOM so installed hashes remain comparable", async (t) => {
+  const source = `\uFEFF${VALID_SOURCE}`;
+  const root = await createFixture(t, { source, entry: entryFor(source) });
+
+  await assert.rejects(validateCatalog(root), /UTF-8 BOM is not supported/);
+});
+
 test("rejects catalog Toppings with an all-sites scope", async (t) => {
   const source = VALID_SOURCE
     .replace("https://example.com/*", "*://*/*")

@@ -53,6 +53,7 @@ function requireBoundedString(value, label, maxChars) {
 }
 
 function parseMetadata(source, label) {
+  requireCondition(!source.startsWith("\uFEFF"), `${label}: UTF-8 BOM is not supported`);
   const normalized = source.replace(/^\uFEFF/, "");
   const lines = normalized.split("\n").map((line) => line.endsWith("\r") ? line.slice(0, -1) : line);
   const start = lines.findIndex((line) => METADATA_START.test(line));
@@ -244,6 +245,10 @@ export async function validateCatalog(rootDirectory) {
     requireCondition(stat.isFile() && !stat.isSymbolicLink(), `${entry.source} must be a regular file`);
     const sourceBytes = await readFile(sourcePath);
     requireCondition(sourceBytes.length <= MAX_SOURCE_BYTES, `${entry.source} exceeds ${MAX_SOURCE_BYTES} bytes`);
+    requireCondition(
+      !(sourceBytes[0] === 0xef && sourceBytes[1] === 0xbb && sourceBytes[2] === 0xbf),
+      `${entry.source}: UTF-8 BOM is not supported`,
+    );
     const digest = createHash("sha256").update(sourceBytes).digest("hex");
     requireCondition(digest === entry.sha256, `${entry.source}: SHA-256 mismatch`);
     let source;
