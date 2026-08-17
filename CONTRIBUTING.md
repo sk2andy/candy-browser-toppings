@@ -3,6 +3,18 @@
 Submit one Topping per pull request. Keep it small enough to review without generated or minified
 code.
 
+By submitting a change, you agree that maintainers may review the complete source, request a
+narrower scope, decline behavior that creates avoidable risk, and remove a Topping later if it
+becomes unsafe or stops working.
+
+## Before opening a pull request
+
+- Search existing Toppings and pull requests to avoid duplicates.
+- Test against current versions of every explicitly listed host.
+- Keep the implementation focused on one user-visible purpose.
+- Read the full source as it will be published; do not submit code you cannot explain.
+- Confirm that you have the right to publish the code under the declared SPDX license.
+
 ## Required files
 
 1. Add `toppings/<id>.user.js`. Use a lowercase, hyphen-separated stable ID.
@@ -10,6 +22,10 @@ code.
 3. Compute the raw file SHA-256 (`shasum -a 256 toppings/<id>.user.js`).
 4. Run `npm run check`.
 5. Explain purpose, tested URLs, and screenshots or behavior before/after in the pull request.
+
+For changes to an existing Topping, keep its `id` and source path stable, increment its semantic
+version, update its SHA-256, and describe any changed behavior or scope. Do not reuse a version for
+different source.
 
 Catalog entries use this exact shape:
 
@@ -61,5 +77,26 @@ are rejected even though locally authored Toppings may use them.
 - Make DOM changes idempotent and fail safely when a site's markup changes.
 - Keep unrelated site functionality and accessibility intact.
 - Authors must have rights to publish the code under the entry's SPDX license.
+
+## Pull request requirements
+
+A pull request is ready for merge only when:
+
+- repository validation and tests pass;
+- the pull request template is complete;
+- every host, path, storage use, and network request is disclosed;
+- visual changes include screenshots or a clear before/after description;
+- at least one maintainer approves the exact source and catalog diff; and
+- no unresolved review thread remains.
+
+Contributions merge through pull requests only. Maintainers may ask for simpler code, narrower
+matching paths, additional tests, accessibility fixes, or removal of a capability before approval.
+Approval is discretionary because enabled Toppings execute with the page's signed-in session.
+
+## Reporting security problems
+
+Do not open a public pull request that demonstrates credential theft, data exfiltration, or another
+active vulnerability in a published Topping. Report it privately through the Candy Browser
+Toppings repository's GitHub security advisory flow and include the affected Topping ID and version.
 
 Website markup changes. Maintainers may update, disable, or remove a broken or unsafe Topping.
