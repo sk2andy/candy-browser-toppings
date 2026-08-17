@@ -44,4 +44,5 @@ including signed-in page state. Read source before enabling it. Candy does not p
 SHA-256 detects an inconsistent or corrupted download. It does not protect against a compromised
 catalog repository. Every contribution therefore requires review before merge.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the submission format and review rules.
+Want to add or update one? Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+The pull request template captures required scope, testing, accessibility, and security details.
