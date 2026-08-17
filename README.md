@@ -10,9 +10,7 @@ therefore needs no Candy Browser release.
 | Topping | Purpose | Sites |
 | --- | --- | --- |
 | GitHub Readable Diffs | Makes pull-request diffs denser and easier to scan | `github.com` |
-| Hacker News Comfort | Improves typography and spacing | `news.ycombinator.com` |
-| Stack Overflow Focus | Hides sidebars on question pages | `stackoverflow.com` |
-| Wikipedia Reading Focus | Centers articles at a comfortable reading width | Selected Wikipedia languages |
+| Hacker News Comfort | Adds readable cards, larger type, and stronger tap targets | `news.ycombinator.com` |
 | YouTube No Shorts | Opens Shorts in the regular video player | `www.youtube.com` |
 
 ## Repository contract

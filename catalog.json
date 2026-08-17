@@ -17,45 +17,15 @@
     {
       "id": "hacker-news-comfort",
       "name": "Hacker News Comfort",
-      "description": "Improves typography, spacing, and tap targets on Hacker News.",
+      "description": "Adds readable cards, larger type, and stronger tap targets to Hacker News.",
       "author": "Candy Browser contributors",
       "license": "MIT",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "source": "toppings/hacker-news-comfort.user.js",
       "matches": [
         "https://news.ycombinator.com/*"
       ],
-      "sha256": "bfb8adf5dc7c18a0eaa343fff7d5d3f681e719904eb678b9ddb7b147821de690"
-    },
-    {
-      "id": "stack-overflow-focus",
-      "name": "Stack Overflow Focus",
-      "description": "Hides sidebars on question pages to leave more room for answers.",
-      "author": "Candy Browser contributors",
-      "license": "MIT",
-      "version": "1.0.0",
-      "source": "toppings/stack-overflow-focus.user.js",
-      "matches": [
-        "https://stackoverflow.com/questions/*"
-      ],
-      "sha256": "8d1f9cc8e6bfc9759295b444143b50047b98199a9d84a06bc00902528433380a"
-    },
-    {
-      "id": "wikipedia-reading-focus",
-      "name": "Wikipedia Reading Focus",
-      "description": "Centers Wikipedia articles at a comfortable reading width.",
-      "author": "Candy Browser contributors",
-      "license": "MIT",
-      "version": "1.0.1",
-      "source": "toppings/wikipedia-reading-focus.user.js",
-      "matches": [
-        "https://en.wikipedia.org/*",
-        "https://de.wikipedia.org/*",
-        "https://es.wikipedia.org/*",
-        "https://fr.wikipedia.org/*",
-        "https://pt.wikipedia.org/*"
-      ],
-      "sha256": "8210b8808fcd05a8f0c175d3fd214a2259b9579bf32628c56d399b6862fb4a00"
+      "sha256": "ad80f3537fb3524b5b175ee9d2581c10af857d2eabd05ed22cafb8ee5cb49e2c"
     },
     {
       "id": "youtube-no-shorts",
