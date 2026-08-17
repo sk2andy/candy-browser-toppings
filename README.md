@@ -9,8 +9,13 @@ therefore needs no Candy Browser release.
 
 | Topping | Purpose | Sites |
 | --- | --- | --- |
+| Copy Code Button | Adds accessible copy buttons where documentation sites lack them | `developer.android.com`, `developer.mozilla.org`, `docs.github.com`, `docs.gradle.org` |
 | GitHub Readable Diffs | Makes pull-request diffs denser and easier to scan | `github.com` |
+| Google Search Cleanup | Cleans redirects and tracking parameters from search-result links | `google.com`, `google.de` |
 | Hacker News Comfort | Adds readable cards, larger type, and stronger tap targets | `news.ycombinator.com` |
+| Link Tracking Cleaner | Removes known tracking parameters from outbound links | GitHub, Medium, Hacker News, Reddit |
+| Medium Reading Focus | Removes sticky app and sign-up chrome without touching paywalls | `medium.com` |
+| Reddit Thread Comfort | Removes app prompts and improves mobile comment readability | `reddit.com` |
 | YouTube No Shorts | Opens Shorts in the regular video player | `www.youtube.com` |
 
 ## Repository contract
