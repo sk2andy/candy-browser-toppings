@@ -1,0 +1,14 @@
+{
+  "name": "candy-browser-toppings",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "validate": "node scripts/validate-catalog.mjs",
+    "test": "node --test",
+    "check": "npm run validate && npm test"
+  }
+}

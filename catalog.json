@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "toppings": [
+    {
+      "id": "github-readable-diffs",
+      "name": "GitHub Readable Diffs",
+      "description": "Makes pull-request diffs denser and easier to scan.",
+      "author": "Candy Browser contributors",
+      "license": "MIT",
+      "version": "1.0.0",
+      "source": "toppings/github-readable-diffs.user.js",
+      "matches": [
+        "https://github.com/*/*/pull/*/files*"
+      ],
+      "sha256": "8326a21beaee1249d6f8f827f58daed43e70e23c13a947a13caf9ed620974867"
+    },
+    {
+      "id": "hacker-news-comfort",
+      "name": "Hacker News Comfort",
+      "description": "Improves typography, spacing, and tap targets on Hacker News.",
+      "author": "Candy Browser contributors",
+      "license": "MIT",
+      "version": "1.0.0",
+      "source": "toppings/hacker-news-comfort.user.js",
+      "matches": [
+        "https://news.ycombinator.com/*"
+      ],
+      "sha256": "bfb8adf5dc7c18a0eaa343fff7d5d3f681e719904eb678b9ddb7b147821de690"
+    },
+    {
+      "id": "stack-overflow-focus",
+      "name": "Stack Overflow Focus",
+      "description": "Hides sidebars on question pages to leave more room for answers.",
+      "author": "Candy Browser contributors",
+      "license": "MIT",
+      "version": "1.0.0",
+      "source": "toppings/stack-overflow-focus.user.js",
+      "matches": [
+        "https://stackoverflow.com/questions/*"
+      ],
+      "sha256": "8d1f9cc8e6bfc9759295b444143b50047b98199a9d84a06bc00902528433380a"
+    },
+    {
+      "id": "wikipedia-reading-focus",
+      "name": "Wikipedia Reading Focus",
+      "description": "Centers Wikipedia articles at a comfortable reading width.",
+      "author": "Candy Browser contributors",
+      "license": "MIT",
+      "version": "1.0.0",
+      "source": "toppings/wikipedia-reading-focus.user.js",
+      "matches": [
+        "https://*.wikipedia.org/*"
+      ],
+      "sha256": "7bdcdfe4d7ff788c6564bd0826e447f06f7e46028ecb869d279f4a4626b9b38c"
+    },
+    {
+      "id": "youtube-no-shorts",
+      "name": "YouTube No Shorts",
+      "description": "Opens Shorts in the regular YouTube video player.",
+      "author": "Candy Browser contributors",
+      "license": "MIT",
+      "version": "1.0.0",
+      "source": "toppings/youtube-no-shorts.user.js",
+      "matches": [
+        "https://www.youtube.com/shorts/*"
+      ],
+      "sha256": "b958a6b5932fcf786e0365d5bcb7bb4eb5a594b3466d8007a2d1600ac40b4960"
+    }
+  ]
+}
