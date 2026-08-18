@@ -16,7 +16,12 @@ therefore needs no Candy Browser release.
 | Link Tracking Cleaner | Removes known tracking parameters from outbound links | GitHub, Medium, Hacker News, Reddit |
 | Medium Reading Focus | Removes sticky app and sign-up chrome without touching paywalls | `medium.com` |
 | Reddit Thread Comfort | Removes app prompts and improves mobile comment readability | `reddit.com` |
+| Spoilerfree Sports | Hides scores and winner cues behind a full-width, on-by-default toggle | FIFA, Flashscore, Sky Sports, Cricbuzz, ESPNcricinfo, Goal, LiveScore, Yahoo NBA, ESPN, NBA, NFL, NHL, MLB, Kicker, Sport Bild, SofaScore |
 | YouTube No Shorts | Opens Shorts in the regular video player | `www.youtube.com` |
+
+Spoilerfree Sports stores no preference of its own. On NBA pages it drives NBA's native Hide
+Scores switch, then immediately restores the site's existing `hideScores` preference so enabling
+or removing the Topping does not change the user's choice for later visits.
 
 ## Repository contract
 
