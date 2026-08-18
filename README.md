@@ -23,9 +23,11 @@ Spoilerfree Sports stores no preference of its own. On NBA pages it drives NBA's
 Scores switch, then immediately restores the site's existing `hideScores` preference so enabling
 or removing the Topping does not change the user's choice for later visits.
 
-On ESPN, Yahoo Sports, NBA, NFL, NHL, MLB, and Kicker the script can load across the exact site
-host so it also catches score modules embedded on home, article, team-schedule, and localized
-routes. The toggle is only inserted after a known score component is detected.
+On ESPN, Yahoo Sports, NBA, NFL, NHL, MLB, Kicker, Cricbuzz, ESPNcricinfo, and Goal the script can
+load across the exact site host so it also catches score modules embedded on home, article,
+team-schedule, competition, and localized routes. Flashscore team-result pages, Sky Sports
+football and cricket hubs, and LiveScore match timelines are also covered. The toggle is only
+inserted after a known score component is detected.
 
 ## Repository contract
 

@@ -26,8 +26,9 @@ class FakeStyle {
 class FakeElement {
   #attributes = new Map();
 
-  constructor(textContent = "") {
+  constructor(textContent = "", tagName = "SPAN") {
     this.textContent = textContent;
+    this.tagName = tagName;
     this.style = new FakeStyle();
     this.isConnected = true;
     this.previousElementSibling = null;
@@ -91,12 +92,24 @@ test("matches every supported score surface and rejects nearby pages", () => {
     ["https://www.fifa.com/en/tournaments/mens/worldcup/example/scores-fixtures", "fifa"],
     ["https://www.flashscore.com/football/", "flashscore"],
     ["https://www.flashscore.com/hockey/", "flashscore"],
+    ["https://www.flashscore.com/team/chelsea/QiWDto1I/results/", "flashscore"],
     ["https://www.skysports.com/football-scores-fixtures/2026-07-11", "skysports"],
+    ["https://www.skysports.com/football/features", "skysports"],
+    ["https://www.skysports.com/manchester-city-scores-fixtures/2026-05-01", "skysports"],
+    ["https://www.skysports.com/cricket/scores-fixtures/26-07-2026", "skysports-cricket"],
+    ["https://www.cricbuzz.com/", "cricbuzz"],
+    ["https://www.cricbuzz.com/cricket-schedule/upcoming-series/all", "cricbuzz"],
     ["https://www.cricbuzz.com/cricket-match/live-scores/recent-matches", "cricbuzz"],
     ["https://www.cricbuzz.com/cricket-series/123/example/matches", "cricbuzz"],
+    ["https://www.espncricinfo.com/", "espncricinfo"],
+    ["https://www.espncricinfo.com/story/example-123", "espncricinfo"],
     ["https://www.espncricinfo.com/live-cricket-match-results", "espncricinfo"],
     ["https://www.goal.com/en/live-scores", "goal"],
+    ["https://www.goal.com/de/live-ergebnisse", "goal"],
+    ["https://www.goal.com/it/livescore", "goal"],
+    ["https://www.goal.com/fr/ligue-1/matches-resultats/example", "goal"],
     ["https://www.livescore.com/en/football/", "livescore"],
+    ["https://www.livescore.com/en/football/brazil/serie-a/corinthians-vs-cruzeiro/1708641/", "livescore"],
     ["https://sports.yahoo.com/", "yahoo"],
     ["https://sports.yahoo.com/nba/scoreboard/?season=2025", "yahoo"],
     ["https://sports.yahoo.com/mlb/scoreboard/?season=2026&date=2026-08-17", "yahoo"],
@@ -113,6 +126,9 @@ test("matches every supported score surface and rejects nearby pages", () => {
     ["https://www.espn.co.uk/football/scoreboard", "espn"],
     ["https://www.espn.co.uk/nhl/resultados", "espn"],
     ["https://www.espn.com/nba/story/_/id/1/example", "espn"],
+    ["https://www.espn.com/nba/team/schedule/_/name/ny/season/2026", "espn"],
+    ["https://www.espn.co.uk/nba/recap/_/gameId/401810322", "espn"],
+    ["https://www.espn.com/nba/game/_/gameId/401812480/76ers-knicks", "espn"],
     ["https://www.nba.com/games?date=2025-06-22", "nba"],
     ["https://www.nba.com/schedule", "nba"],
     ["https://www.nfl.com/scores/2025/week-18", "nfl"],
@@ -142,8 +158,6 @@ test("matches every supported score surface and rejects nearby pages", () => {
 
   for (const url of [
     "https://www.google.com/",
-    "https://www.espncricinfo.com/series/example/full-scorecard",
-    "https://www.goal.com/en/news/example",
     "https://sports.example.com/nba/scoreboard/",
     "https://example.com/scores",
   ]) {
@@ -203,6 +217,16 @@ test("flattens score accessibility and restores original attributes", () => {
   assert.equal(score.insertedElement.isConnected, false);
 });
 
+test("does not insert invalid accessibility siblings beside table cells", () => {
+  const policy = loadPolicy();
+  const score = new FakeElement("99", "TD");
+
+  policy.markScore(score);
+
+  assert.equal(score.getAttribute("aria-hidden"), "true");
+  assert.equal(score.insertedElement, null);
+});
+
 test("restores the page's latest aria-hidden value", () => {
   const policy = loadPolicy();
   const detail = new FakeElement("winner detail");
@@ -247,6 +271,12 @@ test("dynamic score surfaces only activate after their audited component exists"
   const google = policy.adapter("google");
   const nba = policy.adapter("nba");
   const mlb = policy.adapter("mlb");
+  const flashscore = policy.adapter("flashscore");
+  const goal = policy.adapter("goal");
+  const cricbuzz = policy.adapter("cricbuzz");
+  const espncricinfo = policy.adapter("espncricinfo");
+  const sky = policy.adapter("skysports");
+  const skyCricket = policy.adapter("skysports-cricket");
   assert.equal(kicker.detects({ querySelectorAll: () => [] }), false);
   const kickerHolder = {
     querySelector: () => ({}),
@@ -260,10 +290,17 @@ test("dynamic score surfaces only activate after their audited component exists"
     querySelector: (selector) => selector === "#sports-app" ? {} : null,
     querySelectorAll: (selector) => selector === ".ss-ms-cs" ? [{ textContent: "7" }] : [],
   }), true);
-  assert.equal(nba.detects({ querySelector: () => null }), false);
+  assert.equal(nba.detects({ querySelector: () => null, querySelectorAll: () => [] }), false);
   assert.equal(nba.detects({ querySelector: () => ({}) }), true);
+  assert.equal(nba.detects({
+    querySelector: () => null,
+    querySelectorAll: () => [{ textContent: "99" }],
+  }), true);
   assert.equal(mlb.detects({ querySelector: () => null }), false);
   assert.equal(mlb.detects({ querySelector: () => ({}) }), true);
+  for (const adapter of [flashscore, goal, cricbuzz, espncricinfo, sky, skyCricket]) {
+    assert.equal(adapter.detects({ querySelectorAll: () => [] }), false, adapter.id);
+  }
 });
 
 test("ESPN ignores placeholders and neutralizes shootout status", () => {
@@ -286,6 +323,13 @@ test("ESPN desktop baseball hides runs without mistaking hits or errors for scor
   assert.match(source, /ScoreboardScoreCell__WinnerIcon/);
   assert.match(source, /Scoreboard__Performers/);
   assert.match(source, /Media__Caption__Title/);
+});
+
+test("ESPN covers team schedules and Prism game scoreboards", () => {
+  assert.match(source, /Schedule__resultSymbol|data-testid="symbol"/);
+  assert.match(source, /Gamestrip__StickyContainer/);
+  assert.match(source, /data-testid="prism-Table"/);
+  assert.match(source, /Probabilities and Game Flow/);
 });
 
 test("leaving NBA games restores the native score switch", () => {

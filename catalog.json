@@ -107,19 +107,17 @@
       "description": "Hides scores and winner cues behind an accessible, full-width toggle on supported sports sites.",
       "author": "Candy Browser contributors",
       "license": "MIT",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "source": "toppings/spoilerfree-sports.user.js",
       "matches": [
         "https://www.fifa.com/*/scores-fixtures*",
         "https://www.flashscore.com/*",
-        "https://www.skysports.com/football-scores-fixtures*",
-        "https://www.cricbuzz.com/cricket-match/live-scores*",
-        "https://www.cricbuzz.com/cricket-series/*/*/matches*",
-        "https://www.espncricinfo.com/live-cricket-score*",
-        "https://www.espncricinfo.com/live-cricket-match-results*",
-        "https://www.espncricinfo.com/live-cricket-match-schedule-fixtures*",
-        "https://www.espncricinfo.com/series/*/match-schedule-fixtures-and-results*",
-        "https://www.goal.com/*/live-scores*",
+        "https://www.skysports.com/football*",
+        "https://www.skysports.com/*-scores-fixtures*",
+        "https://www.skysports.com/cricket/scores-fixtures*",
+        "https://www.cricbuzz.com/*",
+        "https://www.espncricinfo.com/*",
+        "https://www.goal.com/*",
         "https://www.livescore.com/*",
         "https://sports.yahoo.com/*",
         "https://www.espn.com/*",
@@ -137,7 +135,7 @@
         "https://m.sportdaten.sportbild.bild.de/*",
         "https://www.sofascore.com/*"
       ],
-      "sha256": "7f5964bf85c6530d8a06b82170b33e12626a43aaf6740ca37a4334c5424f109f"
+      "sha256": "63de327e30c43a5be736fe57da1285779f2817b0f85e451479593717fefd1cc2"
     },
     {
       "id": "youtube-no-shorts",

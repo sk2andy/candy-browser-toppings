@@ -1,18 +1,16 @@
 // ==UserScript==
 // @name Spoilerfree Sports
 // @description Hides scores and winner cues behind an accessible, full-width toggle on supported sports sites.
-// @version 1.2.0
+// @version 1.3.0
 // @license MIT
 // @match https://www.fifa.com/*/scores-fixtures*
 // @match https://www.flashscore.com/*
-// @match https://www.skysports.com/football-scores-fixtures*
-// @match https://www.cricbuzz.com/cricket-match/live-scores*
-// @match https://www.cricbuzz.com/cricket-series/*/*/matches*
-// @match https://www.espncricinfo.com/live-cricket-score*
-// @match https://www.espncricinfo.com/live-cricket-match-results*
-// @match https://www.espncricinfo.com/live-cricket-match-schedule-fixtures*
-// @match https://www.espncricinfo.com/series/*/match-schedule-fixtures-and-results*
-// @match https://www.goal.com/*/live-scores*
+// @match https://www.skysports.com/football*
+// @match https://www.skysports.com/*-scores-fixtures*
+// @match https://www.skysports.com/cricket/scores-fixtures*
+// @match https://www.cricbuzz.com/*
+// @match https://www.espncricinfo.com/*
+// @match https://www.goal.com/*
 // @match https://www.livescore.com/*
 // @match https://sports.yahoo.com/*
 // @match https://www.espn.com/*
@@ -59,6 +57,7 @@
   const protectedAttributeValues = new WeakMap();
   const accessibleScoreLabels = new WeakMap();
   const originalStylePresence = new WeakMap();
+  const deferredHydrationRoots = new WeakSet();
   const protectedElements = new Set();
   let staleElements = null;
   let enabled = true;
@@ -68,6 +67,8 @@
   let barHost = null;
   let switchButton = null;
   let statusText = null;
+  let originalDocumentTitle = null;
+  let protectedDocumentTitle = "";
 
   const adapters = [
     {
@@ -77,33 +78,57 @@
     },
     {
       id: "flashscore",
-      accepts: (url) => url.hostname === "www.flashscore.com" && flashscoreSportPaths.test(url.pathname),
+      accepts: (url) => url.hostname === "www.flashscore.com" && (
+        flashscoreSportPaths.test(url.pathname)
+        || /^\/team\/[^/]+\/[^/]+(?:\/(?:results|fixtures))?\/?$/.test(url.pathname)
+      ),
+      detects: (documentRoot) => [...documentRoot.querySelectorAll(".event__match[data-event-row] .event__score")]
+        .some((element) => /\d/.test(element.textContent || "")),
       custom: protectFlashscore,
     },
     {
       id: "skysports",
-      accepts: (url) => url.hostname === "www.skysports.com" && /^\/football-scores-fixtures(?:\/|$)/.test(url.pathname),
+      accepts: (url) => url.hostname === "www.skysports.com" && (
+        /^\/football(?:\/|$|-scores-fixtures(?:\/|$))/.test(url.pathname)
+        || /^\/[^/]+-scores-fixtures(?:\/|$)/.test(url.pathname)
+      ),
+      detects: (documentRoot) => [...documentRoot.querySelectorAll(
+        ".ui-sport-match-score[data-match-state] .ui-sport-match-score__score",
+      )].some((element) => /\d/.test(element.textContent || "")),
       custom: protectSkySports,
     },
     {
+      id: "skysports-cricket",
+      accepts: (url) => url.hostname === "www.skysports.com"
+        && /^\/cricket\/scores-fixtures(?:\/|$)/.test(url.pathname),
+      detects: (documentRoot) => [...documentRoot.querySelectorAll(
+        ".ui-cricket-match-score[data-match-state] .ui-cricket-match-score__score",
+      )].some((element) => /\d/.test(element.textContent || "")),
+      custom: protectSkyCricket,
+    },
+    {
       id: "cricbuzz",
-      accepts: (url) => url.hostname === "www.cricbuzz.com" && (
-        /^\/cricket-match\/live-scores(?:\/(?:recent-matches|upcoming-matches))?\/?$/.test(url.pathname)
-        || /^\/cricket-series\/\d+\/[^/]+\/matches\/?$/.test(url.pathname)
-      ),
+      accepts: (url) => url.hostname === "www.cricbuzz.com",
+      detects: cricbuzzHasSpoiler,
       custom: protectCricbuzz,
     },
     {
       id: "espncricinfo",
-      accepts: (url) => url.hostname === "www.espncricinfo.com" && (
-        /^\/live-cricket-(?:score|match-results|match-schedule-fixtures)\/?$/.test(url.pathname)
-        || /^\/series\/[^/]+\/match-schedule-fixtures-and-results\/?$/.test(url.pathname)
+      accepts: (url) => url.hostname === "www.espncricinfo.com",
+      detects: (documentRoot) => (
+        [...documentRoot.querySelectorAll("a.ds-no-tap-higlight .ci-team-score")]
+          .some((team) => /\d/.test(team.textContent || ""))
+        || [...documentRoot.querySelectorAll("a.ds-no-tap-higlight")]
+          .some((card) => resultWords.test(card.textContent || ""))
       ),
       custom: protectEspnCricInfo,
     },
     {
       id: "goal",
-      accepts: (url) => url.hostname === "www.goal.com" && /^\/[^/]+\/live-scores\/?$/.test(url.pathname),
+      accepts: (url) => url.hostname === "www.goal.com",
+      detects: (documentRoot) => [...documentRoot.querySelectorAll(
+        ".fco-match-list-item[data-match-id] .fco-team-score__value",
+      )].some((element) => numericScore(element)),
       custom: protectGoal,
     },
     {
@@ -122,7 +147,12 @@
     {
       id: "espn",
       accepts: (url) => ["www.espn.com", "www.espn.co.uk"].includes(url.hostname),
-      detects: (documentRoot) => Boolean(documentRoot.querySelector(".Scoreboard, .HeaderScoreboard")),
+      detects: (documentRoot) => Boolean(documentRoot.querySelector([
+        ".Scoreboard",
+        ".HeaderScoreboard",
+        'table a.AnchorLink[href*="/game/_/gameId/"]',
+        'section.Gamestrip__StickyContainer[aria-label="Game scoreboard"]',
+      ].join(", "))),
       scores: [
         ".Scoreboard .ScoreCell__Score:not(.ScoreCell__Score--record)",
         ".HeaderScoreboard .ScoreCell__Score:not(.ScoreCell__Score--record)",
@@ -155,14 +185,20 @@
     {
       id: "nba",
       accepts: (url) => url.hostname === "www.nba.com",
-      detects: (documentRoot) => Boolean(documentRoot.querySelector('input[name="showScores"]')),
+      detects: (documentRoot) => Boolean(documentRoot.querySelector('input[name="showScores"]'))
+        || nbaHasScore(documentRoot),
       nativeNba: true,
+      custom: protectNba,
     },
     {
       id: "nfl",
       accepts: (url) => url.hostname === "www.nfl.com",
-      detects: (documentRoot) => [...documentRoot.querySelectorAll('span[data-testid="accessibility-label"]')]
-        .some((element) => /^\s*\d+\s+points?\s*$/i.test(element.textContent || "")),
+      detects: (documentRoot) => (
+        [...documentRoot.querySelectorAll('span[data-testid="accessibility-label"]')]
+          .some((element) => /^\s*\d+\s+points?\s*$/i.test(element.textContent || ""))
+        || [...documentRoot.querySelectorAll('h2 > a[href*="/games/"]')]
+          .some((link) => /^.+\s\d+\s*,\s*.+\s\d+\s*$/i.test((link.textContent || "").trim()))
+      ),
       custom: protectNfl,
     },
     {
@@ -176,23 +212,39 @@
     {
       id: "mlb",
       accepts: (url) => url.hostname === "www.mlb.com",
-      detects: (documentRoot) => Boolean(documentRoot.querySelector('[data-test-mlb="singleGameContainer"]')),
+      detects: (documentRoot) => Boolean(documentRoot.querySelector(
+        '[data-test-mlb="singleGameContainer"], [data-mlb-test="singleGameContainer"]',
+      )),
       scores: [
         '[data-test-mlb="singleGameContainer"] [class*="MobileHomeScoreWrapper"]',
         '[data-test-mlb="singleGameContainer"] [class*="MobileAwayScoreWrapper"]',
         '[data-test-mlb="singleGameContainer"] [class*="CondensedScoreLine"] > span',
+        '[data-mlb-test="singleGameContainer"] [class*="MobileHomeScoreWrapper"]',
+        '[data-mlb-test="singleGameContainer"] [class*="MobileAwayScoreWrapper"]',
+        '[data-mlb-test="singleGameContainer"] [class*="CondensedScoreLine"] > span',
       ],
       scoreFilter: numericScore,
       hidden: [
         '[data-test-mlb="singleGameContainer"] table',
         '[data-test-mlb="singleGameContainer"] .matchup-wrapper',
+        '[data-mlb-test="singleGameContainer"] table',
+        '[data-mlb-test="singleGameContainer"] .matchup-wrapper',
       ],
       labels: [
         '[data-test-mlb="singleGameContainer"] a[href^="/gameday/"][aria-label]',
         '[data-test-mlb="singleGameContainer"] [data-test-mlb="gameStartTimesStateLabel"][aria-label]',
         '[data-test-mlb="singleGameContainer"] [data-mlb-test="gameStartTimesStateLabel"][aria-label]',
+        '[data-mlb-test="singleGameContainer"] a[href^="/gameday/"][aria-label]',
+        '[data-mlb-test="scoreOrStateHref"] a[href^="/gameday/"][aria-label]',
       ],
       labelFilter: (element) => /\b(?:beat|defeat|won|winning|leads?|runs? to|points? to)\b|\b\d+\s*(?:-|to)\s*\d+\b/i.test(element.getAttribute("aria-label") || ""),
+      replacements: [
+        [
+          '[data-test-mlb="singleGameContainer"] [data-test-mlb="gameStartTimesStateLabel"], [data-test-mlb="singleGameContainer"] [data-mlb-test="gameStartTimesStateLabel"], [data-mlb-test="singleGameContainer"] [data-mlb-test="gameStartTimesStateLabel"]',
+          /^FINAL\s*\/\s*\d+$/i,
+          "FINAL",
+        ],
+      ],
     },
     {
       id: "kicker",
@@ -233,6 +285,13 @@
 
   function nhlTeamResult(element) {
     return /^[WLOT]\s+\d+\s*-\s*\d+(?:\s*\((?:OT|SO)\))?$/i.test((element.textContent || "").trim());
+  }
+
+  function nbaHasScore(documentRoot) {
+    return [...documentRoot.querySelectorAll([
+      'p[class*="MatchupCard_scoreCard"]',
+      'div[class*="SeriesHubGameStatus_score"] > p',
+    ].join(", "))].some((element) => /^\s*\d+\s*$/.test(element.textContent || ""));
   }
 
   function kickerHasScore(documentRoot) {
@@ -293,14 +352,18 @@
       || getComputedStyle(element).fontSize;
     setProtectedAttribute(element, "aria-hidden", "true");
     let label = accessibleScoreLabels.get(element);
-    if (!label?.isConnected || label.previousElementSibling !== element) {
+    const tableCell = /^(?:TD|TH)$/.test(element.tagName);
+    if (tableCell) {
+      label?.remove();
+      accessibleScoreLabels.delete(element);
+    } else if (!label?.isConnected || label.previousElementSibling !== element) {
       label?.remove();
       label = document.createElement("span");
       label.setAttribute(marker.accessible, "");
       element.insertAdjacentElement("afterend", label);
       accessibleScoreLabels.set(element, label);
     }
-    if (label.textContent !== accessibleLabel) label.textContent = accessibleLabel;
+    if (!tableCell && label.textContent !== accessibleLabel) label.textContent = accessibleLabel;
     const combined = /[-:]/.test(element.textContent || "");
     const placeholder = placeholderOverride || (combined ? "— : —" : "—");
     if (element.getAttribute(marker.score) !== placeholder) element.setAttribute(marker.score, placeholder);
@@ -363,6 +426,12 @@
         }
       });
       match.querySelectorAll('[data-testid="wcl-icon-incidents-next-stage"]').forEach(markHidden);
+      match.querySelectorAll([
+        '[data-testid="wcl-badgeForm-win"]',
+        '[data-testid="wcl-badgeForm-loss"]',
+        '[data-testid="wcl-badgeForm-lose"]',
+        '[data-testid="wcl-badgeForm-draw"]',
+      ].join(", ")).forEach(markHidden);
       match.querySelectorAll(
         '.event__participant, [data-testid="wcl-matchRow-participant"] [data-testid="wcl-scores-simple-text-01"]',
       ).forEach(markNeutral);
@@ -385,10 +454,33 @@
     });
   }
 
+  function protectSkyCricket(root) {
+    queryAll([".ui-cricket-match-score[data-match-state]"], root).forEach((match) => {
+      if (!/^(?:live|post)$/.test(match.getAttribute("data-match-state") || "")) return;
+      match.querySelectorAll(".ui-cricket-match-score__score").forEach((element) => {
+        if (/\d/.test(element.textContent || "")) markScore(element);
+      });
+      match.querySelectorAll(".ui-cricket-match-score__summary").forEach((element) => {
+        if (resultWords.test(element.textContent || "") || /\b(?:win|won|tied|drawn?)\b/i.test(element.textContent || "")) {
+          markHidden(element);
+        }
+      });
+    });
+  }
+
   function cricketScore(element) {
     const text = (element.textContent || "").trim();
     return /^\d+(?:-\d+|\/\d+|\/\d+d)?(?:\s*&\s*\d+(?:-\d+|\/\d+)?)?(?:\s*\((?:\d+(?:\.\d+)?|[^)]*(?:ov|balls?|T:)[^)]*)\))?$/i.test(text)
       || /^\([^)]*(?:ov|T:)[^)]*\)\s*\d+(?:\/\d+|\/\d+d)?(?:\s*&\s*\d+(?:\/\d+)?)?$/i.test(text);
+  }
+
+  function cricbuzzHasSpoiler(documentRoot) {
+    return [...documentRoot.querySelectorAll('a[href^="/live-cricket-scores/"]')].some((card) => (
+      resultWords.test(card.getAttribute("title") || "")
+      || [...card.querySelectorAll("span.font-medium.truncate")].some((element) => (
+        element.classList.contains("w-1/2") && cricketScore(element)
+      ))
+    ));
   }
 
   function protectCricbuzz(root) {
@@ -413,7 +505,10 @@
   function protectEspnCricInfo(root) {
     queryAll(["a.ds-no-tap-higlight"], root).forEach((card) => {
       const teams = [...card.querySelectorAll(".ci-team-score")];
-      if (teams.length === 0) return;
+      if (teams.length === 0) {
+        if (resultWords.test(card.textContent || "")) markHidden(card);
+        return;
+      }
       teams.forEach((team) => {
         const score = team.querySelector(":scope > .ds-text-right.ds-whitespace-nowrap")
           || team.querySelector(":scope > div:last-child");
@@ -421,7 +516,11 @@
         markNeutral(team);
         team.querySelectorAll("i.icon-dot_circular").forEach(markHidden);
       });
-      card.querySelectorAll("p.ds-text-tight-s.ds-font-medium").forEach(markHidden);
+      card.querySelectorAll("p").forEach((element) => {
+        if (resultWords.test(element.textContent || "") || /\b\d+\s*[-:]\s*\d+\b/.test(element.textContent || "")) {
+          markHidden(element);
+        }
+      });
     });
   }
 
@@ -456,17 +555,33 @@
         }
       });
     });
+    const matchScore = document.querySelector('[data-id="mt-tm-sc-tm"]');
+    if (matchScore && /^\s*\d+\s+-\s+\d+\s*$/.test(matchScore.textContent || "")) {
+      markScore(matchScore);
+      document.querySelectorAll('[data-id="mtc-det-scrs"]').forEach((element) => {
+        if (/^\s*\d+\s+-\s+\d+\s*$/.test(element.textContent || "")) markScore(element);
+      });
+      document.querySelectorAll("span").forEach((element) => {
+        if (
+          element.children.length === 0
+          && /^\s*\d+\s+-\s+\d+\s*$/.test(element.textContent || "")
+        ) {
+          markScore(element);
+        }
+      });
+    }
   }
 
   function protectYahooSports(root) {
     queryAll(['a[data-ylk*="elm:game;"][data-ylk*="gameId:"]'], root).forEach((game) => {
+      const analytics = game.getAttribute("data-ylk") || "";
       const regularScores = [...game.querySelectorAll("div")].filter((element) => (
         /^\d+$/.test((element.textContent || "").trim())
         && [...element.children].every((child) => child.tagName === "SPAN" && /^\d+$/.test((child.textContent || "").trim()))
         && element.nextElementSibling?.tagName === "SPAN"
         && [...(element.parentElement?.children || [])].filter((child) => !child.hasAttribute(marker.accessible)).length === 2
       ));
-      const compactScores = (game.getAttribute("data-ylk") || "").includes("sec:featured-module;")
+      const compactScores = /sec:(?:featured-module|story-cards);/.test(analytics)
         ? [...game.querySelectorAll("div > span")].filter((element) => (
           /^\d+$/.test((element.textContent || "").trim())
           && element.children.length === 0
@@ -474,14 +589,25 @@
           && Boolean(element.parentElement?.querySelector(":scope > div img, :scope > div picture"))
         ))
         : [];
-      const scores = regularScores.length === 2 ? regularScores : compactScores;
+      const storyScores = analytics.includes("sec:story-cards;")
+        ? [...game.querySelectorAll("div")].filter((element) => (
+          /^\d+$/.test((element.textContent || "").trim())
+          && element.children.length === 0
+          && element.parentElement?.children.length === 2
+          && element.parentElement.lastElementChild === element
+          && element.parentElement.firstElementChild?.tagName === "DIV"
+        ))
+        : [];
+      const scores = regularScores.length === 2
+        ? regularScores
+        : compactScores.length === 2 ? compactScores : storyScores;
       if (scores.length !== 2) return;
       scores.forEach((score) => {
         markScore(score);
         if (score.parentElement?.parentElement) markNeutral(score.parentElement.parentElement);
       });
       game.querySelectorAll('svg[data-icon^="win-indicator"]').forEach(markHidden);
-      game.querySelectorAll("span").forEach((element) => {
+      game.querySelectorAll("span, div").forEach((element) => {
         if (
           !element.hasAttribute(marker.accessible)
           && element.children.length === 0
@@ -539,6 +665,124 @@
         markHidden(element);
       }
     });
+
+    queryAll(['table a.AnchorLink[href*="/game/_/gameId/"]'], root).forEach((link) => {
+      if (!/^\s*\d+\s*[-:]\s*\d+\s*$/.test(link.textContent || "")) return;
+      markScore(link);
+      const resultCell = link.closest("td");
+      resultCell?.querySelectorAll('[data-testid="symbol"]').forEach(markHidden);
+      const recordCell = resultCell?.nextElementSibling;
+      if (recordCell && /^\s*\d+(?:\s*-\s*\d+){1,2}\s*$/.test(recordCell.textContent || "")) {
+        markHidden(recordCell);
+      }
+    });
+
+    queryAll(['section.Gamestrip__StickyContainer[aria-label="Game scoreboard"]'], root).forEach((scoreboard) => {
+      const totals = new Set();
+      let protectedLargeScores = 0;
+      scoreboard.querySelectorAll('table[data-testid="prism-Table"]').forEach((table) => {
+        const headers = [...table.querySelectorAll("thead tr:last-child > th, thead tr:last-child > td")];
+        const totalHeader = headers.find((header) => /^(?:T|R)$/.test((header.textContent || "").trim()));
+        const totalIndex = totalHeader?.cellIndex ?? -1;
+        table.querySelectorAll("tbody tr").forEach((row) => {
+          const cells = [...row.children].filter((cell) => !cell.hasAttribute(marker.accessible));
+          const total = totalIndex >= 0 ? (cells[totalIndex] || cells.at(-1)) : cells.at(-1);
+          if (total && numericScore(total)) totals.add((total.textContent || "").trim());
+          cells.forEach((cell) => {
+            if (numericScore(cell)) markScore(cell);
+          });
+        });
+      });
+      scoreboard.querySelectorAll("div").forEach((element) => {
+        const ownText = [...element.childNodes]
+          .filter((node) => node.nodeType === Node.TEXT_NODE)
+          .map((node) => node.textContent || "")
+          .join("")
+          .trim();
+        if (
+          !element.closest("table")
+          && totals.has(ownText)
+          && [...element.children].every((child) => child.querySelector('svg[data-icon="arrows-triangleRight"]'))
+        ) {
+          markScore(element);
+          protectedLargeScores += 1;
+          let candidate = element.parentElement;
+          let teamSide = null;
+          while (candidate && candidate !== scoreboard) {
+            const teamLinks = new Set(
+              [...candidate.querySelectorAll('a[href*="/team/"]')].map((link) => link.getAttribute("href")),
+            );
+            if (teamLinks.size !== 1) break;
+            teamSide = candidate;
+            candidate = candidate.parentElement;
+          }
+          if (teamSide) markNeutral(teamSide);
+        }
+      });
+      scoreboard.querySelectorAll("span").forEach((element) => {
+        if (element.children.length === 0 && /^\d+(?:-\d+){1,2}$/.test((element.textContent || "").trim())) {
+          markHidden(element);
+        }
+      });
+      scoreboard.querySelectorAll('svg[data-icon="arrows-triangleRight"]').forEach(markHidden);
+      scoreboard.querySelectorAll("span, div").forEach((element) => {
+        if (
+          element.children.length === 0
+          && /^Final\s*\/\s*(?:\d+|(?:\d+)?OT|SO|Pens)$/i.test((element.textContent || "").trim())
+        ) {
+          markScore(element, "Final", "Final");
+        }
+      });
+      document.querySelectorAll('[aria-label^="Probabilities and Game Flow"]').forEach(markHidden);
+      protectDocumentTitle(/\b\d{1,3}\s*[-:]\s*\d{1,3}\b/, "ESPN Spiel");
+      if (totals.size > 0 && protectedLargeScores === 0 && !deferredHydrationRoots.has(scoreboard)) {
+        deferredHydrationRoots.add(scoreboard);
+        [500, 2000, 6000].forEach((delay) => {
+          setTimeout(() => {
+            if (enabled && scoreboard.isConnected) scan();
+          }, delay);
+        });
+      }
+    });
+
+    queryAll(["main h1", "main h2", "main h3"], root).forEach((element) => {
+      if (/\b\d{1,3}\s*[-:]\s*\d{1,3}\b/.test(element.textContent || "")) markHidden(element);
+    });
+  }
+
+  function protectNba(root) {
+    queryAll([
+      'p[class*="MatchupCard_scoreCard"]',
+      'div[class*="SeriesHubGameStatus_score"] > p',
+    ], root).forEach((element) => {
+      if (/^\s*\d+\s*$/.test(element.textContent || "")) markScore(element);
+    });
+    queryAll(['svg[class*="MatchupCard_win"]'], root).forEach(markHidden);
+    queryAll(['div[class*="MatchupCard_team"][data-winner]'], root).forEach(markNeutral);
+    queryAll([
+      'p[class*="SeriesHubStatus_seriesText"]',
+      'p[class*="SeriesHubMatchups_seriesRecordStatus"] > span:last-child',
+    ], root).forEach((element) => {
+      if (/\b(?:wins?|won|leads?|advance|eliminat)\b|\b\d+\s*-\s*\d+\b/i.test(element.textContent || "")) {
+        markHidden(element);
+      }
+    });
+    queryAll(['table[class*="GameLinescore_table"]'], root).forEach((table) => {
+      table.querySelectorAll("tbody td:not(:first-child)").forEach((cell) => {
+        if (numericScore(cell)) markScore(cell);
+      });
+      table.querySelectorAll("td[data-is-winner]").forEach(markNeutral);
+    });
+    queryAll(['table[class*="StatsTable_table"]'], root).forEach((table) => {
+      const headers = [...table.querySelectorAll("thead th, thead td")];
+      const pointsHeader = headers.find((header) => /^PTS$/i.test((header.textContent || "").trim()));
+      const pointsIndex = pointsHeader?.cellIndex ?? -1;
+      if (pointsIndex < 0) return;
+      table.querySelectorAll('tbody tr:has(span[class*="GameBoxscoreTable_totals"])').forEach((row) => {
+        const points = row.children[pointsIndex];
+        if (points && numericScore(points)) markScore(points);
+      });
+    });
   }
 
   function protectNfl(root) {
@@ -570,6 +814,25 @@
         if (/winner indicator/i.test(title.textContent || "")) markHidden(title.closest("svg") || title);
       });
       card.querySelectorAll(".text-black, .text-ls-600").forEach(markNeutral);
+      card.querySelectorAll("span.sr-only").forEach((element) => {
+        if (/^.+\s\d+\s*,\s*.+\s\d+\s*,\s*(?:FINAL|LIVE)\b/i.test((element.textContent || "").trim())) {
+          markScore(element, "", "Spiel öffnen, Ergebnis verborgen");
+        }
+      });
+      card.querySelectorAll("span.misc-1-stats").forEach((element) => {
+        if (/^\s*\d+\s*-\s*\d+(?:\s*-\s*\d+)?\s*$/.test(element.textContent || "")) markHidden(element);
+      });
+    });
+    queryAll(['[data-testid="blurrable-score"]'], root).forEach((element) => {
+      if (!numericScore(element)) return;
+      markScore(element);
+      if (element.parentElement) markNeutral(element.parentElement);
+    });
+    queryAll(["title"], root).forEach((title) => {
+      if (/winner indicator/i.test(title.textContent || "")) markHidden(title.closest("svg") || title);
+    });
+    queryAll(['h2 > a[href*="/games/"]'], root).forEach((link) => {
+      if (/^.+\s\d+\s*,\s*.+\s\d+\s*$/i.test((link.textContent || "").trim())) markHidden(link);
     });
   }
 
@@ -603,6 +866,14 @@
 
     queryAll([".rt-table div"], root).forEach((element) => {
       if (nhlTeamResult(element)) markScore(element);
+    });
+    queryAll([
+      '.game-card-container > a[href*="/schedule/playoff-series/"] > div:last-child',
+      '.rt-table a[href*="/schedule/playoff-series/"]',
+    ], root).forEach((element) => {
+      if (/\b(?:wins?|won|leads?)\b|\b\d+\s*-\s*\d+\b/i.test(element.textContent || "")) {
+        markHidden(element);
+      }
     });
   }
 
@@ -706,9 +977,31 @@
     accessibleScoreLabels.delete(element);
   }
 
+  function protectDocumentTitle(pattern, replacement) {
+    const current = document.title;
+    if (current === protectedDocumentTitle) return;
+    if (!pattern.test(current)) {
+      originalDocumentTitle = null;
+      protectedDocumentTitle = "";
+      return;
+    }
+    originalDocumentTitle = current;
+    protectedDocumentTitle = replacement;
+    document.title = replacement;
+  }
+
+  function restoreDocumentTitle() {
+    if (originalDocumentTitle !== null && document.title === protectedDocumentTitle) {
+      document.title = originalDocumentTitle;
+    }
+    originalDocumentTitle = null;
+    protectedDocumentTitle = "";
+  }
+
   function restoreAll() {
     protectedElements.forEach(restoreElement);
     protectedElements.clear();
+    restoreDocumentTitle();
   }
 
   function findAdapter() {
@@ -754,8 +1047,10 @@
 
   function protectWithAdapter(adapter, root) {
     if (adapter.nativeNba) {
-      if (setNbaProtection(true)) registerProtected(nativeNbaControl);
-      return;
+      if (setNbaProtection(true)) {
+        registerProtected(nativeNbaControl);
+        return;
+      }
     }
     queryAll(adapter.scores, root).forEach((element) => {
       if (!adapter.scoreFilter || adapter.scoreFilter(element)) markScore(element);
