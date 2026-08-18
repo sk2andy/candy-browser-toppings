@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Spoilerfree Sports
 // @description Hides scores and winner cues behind an accessible, full-width toggle on supported sports sites.
-// @version 1.1.0
+// @version 1.2.0
 // @license MIT
 // @match https://www.fifa.com/*/scores-fixtures*
 // @match https://www.flashscore.com/*
@@ -14,14 +14,16 @@
 // @match https://www.espncricinfo.com/series/*/match-schedule-fixtures-and-results*
 // @match https://www.goal.com/*/live-scores*
 // @match https://www.livescore.com/*
-// @match https://sports.yahoo.com/nba/scoreboard*
-// @match https://www.espn.com/*/scoreboard*
-// @match https://www.nba.com/games*
-// @match https://www.nfl.com/scores*
-// @match https://www.nhl.com/scores*
-// @match https://www.mlb.com/scores*
-// @match https://www.kicker.de/*/spieltag*
-// @match https://www.kicker.de/*/ergebnisse*
+// @match https://sports.yahoo.com/*
+// @match https://www.espn.com/*
+// @match https://www.espn.co.uk/*
+// @match https://www.nba.com/*
+// @match https://www.nfl.com/*
+// @match https://www.nhl.com/*
+// @match https://www.mlb.com/*
+// @match https://www.kicker.de/*
+// @match https://www.google.com/search*
+// @match https://www.google.de/search*
 // @match https://sport.bild.de/*
 // @match https://m.sport.bild.de/*
 // @match https://sportdaten.sportbild.bild.de/*
@@ -47,6 +49,11 @@
   };
   const sportPaths = /^\/(?:$|football|basketball|tennis|ice-hockey|baseball|handball|volleyball|motorsport|cricket|rugby|futsal|darts|snooker|table-tennis|badminton|waterpolo|cycling|american-football)(?:\/|$)/;
   const flashscoreSportPaths = /^\/(?:$|football|basketball|tennis|hockey|baseball|handball|volleyball|motorsport|cricket|rugby|futsal|darts|snooker|table-tennis|badminton|waterpolo|cycling|american-football)(?:\/|$)/;
+  const googleScoreSelectors = [
+    ".imso_mh__l-tm-sc",
+    ".imso_mh__r-tm-sc",
+    ".ss-ms-cs",
+  ];
   const resultWords = /\b(?:won|win|winning|beat|lead|leads|trail|trails|need|needs|require|requires|stumps?|draw|drawn|tied|abandon|no result|opt to)\b/i;
   const originalAttributes = new WeakMap();
   const protectedAttributeValues = new WeakMap();
@@ -105,21 +112,24 @@
       custom: protectLiveScore,
     },
     {
-      id: "yahoo-nba",
-      accepts: (url) => url.hostname === "sports.yahoo.com" && /^\/nba\/scoreboard\/?$/.test(url.pathname),
-      custom: protectYahooNba,
+      id: "yahoo",
+      accepts: (url) => url.hostname === "sports.yahoo.com",
+      detects: (documentRoot) => Boolean(documentRoot.querySelector(
+        'a[data-ylk*="elm:game;"][data-ylk*="gameId:"]',
+      )),
+      custom: protectYahooSports,
     },
     {
       id: "espn",
-      accepts: (url) => url.hostname === "www.espn.com" && /^\/[^/]+\/scoreboard(?:\/|$)/.test(url.pathname),
+      accepts: (url) => ["www.espn.com", "www.espn.co.uk"].includes(url.hostname),
+      detects: (documentRoot) => Boolean(documentRoot.querySelector(".Scoreboard, .HeaderScoreboard")),
       scores: [
         ".Scoreboard .ScoreCell__Score:not(.ScoreCell__Score--record)",
         ".HeaderScoreboard .ScoreCell__Score:not(.ScoreCell__Score--record)",
       ],
+      scoreFilter: numericScore,
       hidden: [
-        ".Scoreboard .ScoreCell__GameNote",
         ".Scoreboard .ScoreCell__WinnerIcon",
-        ".HeaderScoreboard .ScoreCell__GameNote",
         ".HeaderScoreboard .ScoreCell__WinnerIcon",
       ],
       neutral: [
@@ -129,32 +139,44 @@
         ".HeaderScoreboard .ScoreCell__Item--loser",
       ],
       replacements: [
-        [".Scoreboard .ScoreCell__Time", /\bFinal\/(?:OT|SO)\b/i, "Final"],
-        [".HeaderScoreboard .ScoreCell__Time", /\bFinal\/(?:OT|SO)\b/i, "Final"],
+        [".Scoreboard .ScoreCell__Time", /^Final\s*\/\s*(?:\d+|(?:\d+)?OT|SO)$/i, "Final"],
+        [".HeaderScoreboard .ScoreCell__Time", /^Final\s*\/\s*(?:\d+|(?:\d+)?OT|SO)$/i, "Final"],
+        [".Scoreboard .ScoreCell__Time", /^FT-Pens$/i, "FT"],
+        [".HeaderScoreboard .ScoreCell__Time", /^FT-Pens$/i, "FT"],
       ],
+      conditionalHidden: [
+        [
+          ".Scoreboard .ScoreCell__GameNote, .HeaderScoreboard .ScoreCell__GameNote",
+          /\b(?:wins?|won|series|penalt|advance|eliminat|leads?)\b|\b\d+\s*-\s*\d+\b/i,
+        ],
+      ],
+      custom: protectEspn,
     },
     {
       id: "nba",
-      accepts: (url) => url.hostname === "www.nba.com" && /^\/games(?:\/|$)/.test(url.pathname),
+      accepts: (url) => url.hostname === "www.nba.com",
+      detects: (documentRoot) => Boolean(documentRoot.querySelector('input[name="showScores"]')),
       nativeNba: true,
     },
     {
       id: "nfl",
-      accepts: (url) => url.hostname === "www.nfl.com" && /^\/scores(?:\/|$)/.test(url.pathname),
+      accepts: (url) => url.hostname === "www.nfl.com",
+      detects: (documentRoot) => [...documentRoot.querySelectorAll('span[data-testid="accessibility-label"]')]
+        .some((element) => /^\s*\d+\s+points?\s*$/i.test(element.textContent || "")),
       custom: protectNfl,
     },
     {
       id: "nhl",
-      accepts: (url) => url.hostname === "www.nhl.com" && /^\/scores(?:\/|$)/.test(url.pathname),
-      scores: [".game-card-container .team-score"],
-      hidden: [".game-card-container .goal-chip"],
-      replacements: [
-        [".game-card-container .game-state-container", /\b(?:OT|SO)\b/i, "FINAL"],
-      ],
+      accepts: (url) => url.hostname === "www.nhl.com",
+      detects: (documentRoot) => Boolean(documentRoot.querySelector(
+        ".game-card-container .team-score, .rt-table .gameResultColumnHeader",
+      )) || [...documentRoot.querySelectorAll(".rt-table div")].some(nhlTeamResult),
+      custom: protectNhl,
     },
     {
       id: "mlb",
-      accepts: (url) => url.hostname === "www.mlb.com" && /^\/scores(?:\/|$)/.test(url.pathname),
+      accepts: (url) => url.hostname === "www.mlb.com",
+      detects: (documentRoot) => Boolean(documentRoot.querySelector('[data-test-mlb="singleGameContainer"]')),
       scores: [
         '[data-test-mlb="singleGameContainer"] [class*="MobileHomeScoreWrapper"]',
         '[data-test-mlb="singleGameContainer"] [class*="MobileAwayScoreWrapper"]',
@@ -174,8 +196,19 @@
     },
     {
       id: "kicker",
-      accepts: (url) => url.hostname === "www.kicker.de" && /\/(?:spieltag|ergebnisse)(?:\/|$)/.test(url.pathname),
+      accepts: (url) => url.hostname === "www.kicker.de",
+      detects: kickerHasScore,
       custom: protectKicker,
+    },
+    {
+      id: "google",
+      accepts: (url) => ["www.google.com", "www.google.de"].includes(url.hostname)
+        && url.pathname === "/search",
+      detects: (documentRoot) => Boolean(documentRoot.querySelector("#sports-app"))
+        && googleScoreSelectors.some((selector) => (
+          [...documentRoot.querySelectorAll(selector)].some((element) => /\d/.test(element.textContent || ""))
+        )),
+      custom: protectGoogle,
     },
     {
       id: "sportbild",
@@ -196,6 +229,25 @@
 
   function numericScore(element) {
     return /^\s*\d+(?:\s*[-:]\s*\d+)?\s*$/.test(element.textContent || "");
+  }
+
+  function nhlTeamResult(element) {
+    return /^[WLOT]\s+\d+\s*-\s*\d+(?:\s*\((?:OT|SO)\))?$/i.test((element.textContent || "").trim());
+  }
+
+  function kickerHasScore(documentRoot) {
+    return [...documentRoot.querySelectorAll(
+      ".kick__v100-gameList__gameRow a.kick__v100-scoreBoard",
+    )].some((scoreboard) => {
+      const holder = scoreboard.querySelector(
+        ".kick__v100-scoreBoard__scoreHolder:not(.kick__v100-scoreBoard__scoreHolder--subscore)",
+      );
+      if (!holder) return false;
+      const scores = holder.querySelectorAll(".kick__v100-scoreBoard__scoreHolder__score");
+      return scores.length === 2
+        && Boolean(holder.querySelector(".kick__v100-scoreBoard__scoreHolder__divider"))
+        && [...scores].every(numericScore);
+    });
   }
 
   function saveAttribute(element, name) {
@@ -406,14 +458,23 @@
     });
   }
 
-  function protectYahooNba(root) {
+  function protectYahooSports(root) {
     queryAll(['a[data-ylk*="elm:game;"][data-ylk*="gameId:"]'], root).forEach((game) => {
-      const scores = [...game.querySelectorAll("div")].filter((element) => (
+      const regularScores = [...game.querySelectorAll("div")].filter((element) => (
         /^\d+$/.test((element.textContent || "").trim())
-        && element.children.length === 0
+        && [...element.children].every((child) => child.tagName === "SPAN" && /^\d+$/.test((child.textContent || "").trim()))
         && element.nextElementSibling?.tagName === "SPAN"
         && [...(element.parentElement?.children || [])].filter((child) => !child.hasAttribute(marker.accessible)).length === 2
       ));
+      const compactScores = (game.getAttribute("data-ylk") || "").includes("sec:featured-module;")
+        ? [...game.querySelectorAll("div > span")].filter((element) => (
+          /^\d+$/.test((element.textContent || "").trim())
+          && element.children.length === 0
+          && (!element.nextElementSibling || element.nextElementSibling.hasAttribute(marker.accessible))
+          && Boolean(element.parentElement?.querySelector(":scope > div img, :scope > div picture"))
+        ))
+        : [];
+      const scores = regularScores.length === 2 ? regularScores : compactScores;
       if (scores.length !== 2) return;
       scores.forEach((score) => {
         markScore(score);
@@ -424,9 +485,17 @@
         if (
           !element.hasAttribute(marker.accessible)
           && element.children.length === 0
-          && /^Final(?:\s*\/\s*(?:\d+)?OT)?$/i.test((element.textContent || "").trim())
+          && /^(?:Final(?:\s*\/\s*(?:(?:\d+)?OT|\d+))?|FT(?:\s+PENS)?)$/i.test((element.textContent || "").trim())
         ) {
           markScore(element, "Final", "Final");
+        }
+      });
+      [...game.querySelectorAll("div, span")].forEach((element) => {
+        if (
+          element.children.length === 0
+          && /^(?:W|L|S):\s*\S/i.test((element.textContent || "").trim())
+        ) {
+          markHidden(element.parentElement || element);
         }
       });
     });
@@ -440,11 +509,44 @@
     });
   }
 
+  function protectEspn(root) {
+    queryAll([".Scoreboard"], root).forEach((scoreboard) => {
+      const scores = [...scoreboard.querySelectorAll(
+        ".ScoreboardScoreCell__Item .ScoreboardScoreCell_Linescores > .ScoreboardScoreCell__Value:first-child",
+      )].filter(numericScore);
+      if (scores.length === 0) return;
+      scores.forEach((element) => markScore(element));
+      scoreboard.querySelectorAll(".ScoreboardScoreCell__WinnerIcon").forEach(markHidden);
+      scoreboard.querySelectorAll(
+        ".ScoreboardScoreCell__Item--winner, .ScoreboardScoreCell__Item--loser",
+      ).forEach(markNeutral);
+      scoreboard.querySelectorAll(".ScoreboardScoreCell__Note").forEach((element) => {
+        if (/\b(?:wins?|won|series|penalt|advance|eliminat|leads?)\b|\b\d+\s*-\s*\d+\b/i.test(element.textContent || "")) {
+          markHidden(element);
+        }
+      });
+      scoreboard.querySelectorAll(".Scoreboard__Performers").forEach((element) => {
+        if (/^(?:WIN|LOSS|SAVE)/i.test((element.textContent || "").trim())) markHidden(element);
+      });
+      scoreboard.querySelectorAll(".ScoreboardScoreCell__Time").forEach((element) => {
+        if (/\b(?:OT|SO|Pens)\b|^Final\s*\/\s*\d+$/i.test(element.textContent || "")) {
+          markScore(element, "Final", "Final");
+        }
+      });
+    });
+    queryAll([".Media__Caption__Title"], root).forEach((element) => {
+      if (resultWords.test(element.textContent || "") || /\b\d+\s*[-:]\s*\d+\b/.test(element.textContent || "")) {
+        markHidden(element);
+      }
+    });
+  }
+
   function protectNfl(root) {
     queryAll(['span[data-testid="accessibility-label"]'], root).forEach((label) => {
       if (!/^\s*\d+\s+points?\s*$/i.test(label.textContent || "")) return;
       markHidden(label);
-      const visualScore = label.previousElementSibling;
+      let visualScore = label.previousElementSibling;
+      if (visualScore?.hasAttribute(marker.accessible)) visualScore = visualScore.previousElementSibling;
       if (visualScore && numericScore(visualScore)) markScore(visualScore);
       const card = label.closest("li");
       if (!card) return;
@@ -471,6 +573,39 @@
     });
   }
 
+  function protectNhl(root) {
+    queryAll([".game-card-container"], root).forEach((card) => {
+      card.querySelectorAll(".team-score").forEach((element) => {
+        if (numericScore(element)) markScore(element);
+      });
+      card.querySelectorAll(".goal-chip").forEach(markHidden);
+      card.querySelectorAll(".game-state-container").forEach((element) => {
+        if (/\b(?:OT|SO)\b/i.test(element.textContent || "")) markScore(element, "FINAL", "Final");
+      });
+    });
+
+    queryAll([".rt-table"], root).forEach((table) => {
+      if (!table.querySelector(".gameResultColumnHeader")) return;
+      table.querySelectorAll(".rt-tbody .rt-tr").forEach((row) => {
+        const resultCell = row.querySelector(":scope > td.fullWidth");
+        if (!resultCell) return;
+        const resultPattern = /^\s*[A-ZÀ-Ž]{2,4}\s+\d+\s*,\s*[A-ZÀ-Ž]{2,4}\s+\d+(?:\s*\((?:OT|SO)\))?\s*$/i;
+        const resultNodes = [...resultCell.querySelectorAll("span, div")].filter((element) => (
+          resultPattern.test(element.textContent || "")
+          && ![...element.children].some((child) => resultPattern.test(child.textContent || ""))
+        ));
+        if (resultNodes.length === 0) return;
+        resultNodes.forEach((element) => markScore(element));
+        const detailCell = resultCell.nextElementSibling;
+        if (detailCell && !detailCell.classList.contains("gameLinksColumn")) markHidden(detailCell);
+      });
+    });
+
+    queryAll([".rt-table div"], root).forEach((element) => {
+      if (nhlTeamResult(element)) markScore(element);
+    });
+  }
+
   function protectKicker(root) {
     const rows = queryAll([".kick__v100-gameList__gameRow"], root);
     rows.forEach((row) => {
@@ -483,13 +618,35 @@
         const divider = holder.querySelector(".kick__v100-scoreBoard__scoreHolder__divider");
         if (scores.length !== 2 || !divider || ![...scores].every(numericScore)) return;
         markScore(holder);
-        scoreboard.querySelectorAll(
-          ".kick__v100-scoreBoard__scoreHolder--subscore .kick__v100-scoreBoard__scoreHolder__text",
-        ).forEach((element) => {
-          if (/^(?:OT|n\.P\.|n\.V\.)$/i.test((element.textContent || "").trim())) markHidden(element);
+        scoreboard.querySelectorAll(".kick__v100-scoreBoard__scoreHolder--subscore").forEach((subscore) => {
+          if (/\d+\s*:\s*\d+/.test(subscore.textContent || "")) {
+            markHidden(subscore);
+            return;
+          }
+          subscore.querySelectorAll(".kick__v100-scoreBoard__scoreHolder__text").forEach((element) => {
+            if (/^(?:OT|n\.P\.|n\.V\.)$/i.test((element.textContent || "").trim())) markHidden(element);
+          });
         });
       });
     });
+  }
+
+  function protectGoogle(root) {
+    const sportsRoot = root instanceof Element && root.matches("#sports-app")
+      ? root
+      : root.querySelector("#sports-app");
+    if (!sportsRoot) return;
+    queryAll(googleScoreSelectors, sportsRoot).forEach((element) => {
+      if (/\d/.test(element.textContent || "")) markScore(element);
+    });
+    queryAll([".imso_mh__score-sum.imso-ani"], sportsRoot).forEach((element) => {
+      if (/\d/.test(element.textContent || "")) markHidden(element);
+    });
+    queryAll(["td.imspo_mt__rg > svg"], sportsRoot).forEach(markHidden);
+    queryAll([
+      ".imso_mh__first-tn-ed[data-df-team-mid]",
+      ".imso_mh__second-tn-ed[data-df-team-mid]",
+    ], sportsRoot).forEach(markNeutral);
   }
 
   function protectSportBild(root) {
@@ -556,7 +713,9 @@
 
   function findAdapter() {
     const url = new URL(location.href);
-    return adapters.find((adapter) => adapter.accepts(url)) || null;
+    return adapters.find((adapter) => (
+      adapter.accepts(url) && (!adapter.detects || adapter.detects(document))
+    )) || null;
   }
 
   function nbaScoresHidden(control) {
@@ -849,9 +1008,12 @@
     scan();
   }
 
-  if (document.readyState === "loading") {
+  if (location.hostname === "www.espn.co.uk" && document.readyState !== "complete") {
+    window.addEventListener("load", () => {
+      setTimeout(() => requestAnimationFrame(start), 2500);
+    }, { once: true });
+  } else if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", start, { once: true });
-    installStyle();
   } else {
     start();
   }

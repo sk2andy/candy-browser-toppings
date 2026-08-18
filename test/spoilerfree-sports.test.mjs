@@ -54,7 +54,7 @@ class FakeElement {
 }
 
 function loadPolicy() {
-  const start = '  if (document.readyState === "loading") {';
+  const start = '  if (location.hostname === "www.espn.co.uk"';
   const index = source.lastIndexOf(start);
   assert.notEqual(index, -1, "userscript bootstrap marker must exist");
   const testable = `${source.slice(0, index)}  globalThis.__spoilerfreeTest = {
@@ -63,6 +63,7 @@ function loadPolicy() {
     cricketScore: (text) => cricketScore({ textContent: text }),
     markHidden,
     markScore,
+    nhlTeamResult: (text) => nhlTeamResult({ textContent: text }),
     numericScore: (text) => numericScore({ textContent: text }),
     preserveProtectedMutation,
     restoreElement,
@@ -96,13 +97,42 @@ test("matches every supported score surface and rejects nearby pages", () => {
     ["https://www.espncricinfo.com/live-cricket-match-results", "espncricinfo"],
     ["https://www.goal.com/en/live-scores", "goal"],
     ["https://www.livescore.com/en/football/", "livescore"],
-    ["https://sports.yahoo.com/nba/scoreboard/?season=2025", "yahoo-nba"],
+    ["https://sports.yahoo.com/", "yahoo"],
+    ["https://sports.yahoo.com/nba/scoreboard/?season=2025", "yahoo"],
+    ["https://sports.yahoo.com/mlb/scoreboard/?season=2026&date=2026-08-17", "yahoo"],
+    ["https://sports.yahoo.com/nfl/scoreboard/", "yahoo"],
+    ["https://sports.yahoo.com/nhl/scoreboard/", "yahoo"],
+    ["https://sports.yahoo.com/wnba/scoreboard/", "yahoo"],
+    ["https://sports.yahoo.com/ncaaf/scoreboard/", "yahoo"],
+    ["https://sports.yahoo.com/college-football/scoreboard/", "yahoo"],
+    ["https://sports.yahoo.com/college-basketball/scoreboard/", "yahoo"],
+    ["https://sports.yahoo.com/mlb/article/example", "yahoo"],
     ["https://www.espn.com/nba/scoreboard/_/date/20250622", "espn"],
+    ["https://www.espn.com/nfl/scoreboard/_/week/18/year/2025/seasontype/2", "espn"],
+    ["https://www.espn.co.uk/nba/scoreboard/_/date/20260614", "espn"],
+    ["https://www.espn.co.uk/football/scoreboard", "espn"],
+    ["https://www.espn.co.uk/nhl/resultados", "espn"],
+    ["https://www.espn.com/nba/story/_/id/1/example", "espn"],
     ["https://www.nba.com/games?date=2025-06-22", "nba"],
+    ["https://www.nba.com/schedule", "nba"],
     ["https://www.nfl.com/scores/2025/week-18", "nfl"],
+    ["https://www.nfl.com/news/example", "nfl"],
     ["https://www.nhl.com/scores/2025-04-17", "nhl"],
+    ["https://www.nhl.com/de/scores/2025-04-17", "nhl"],
+    ["https://www.nhl.com/schedule/2026-01-14", "nhl"],
+    ["https://www.nhl.com/de/schedule/2026-01-14", "nhl"],
+    ["https://www.nhl.com/fr/schedule/2026-01-14", "nhl"],
+    ["https://www.nhl.com/devils/schedule/2026-01-14", "nhl"],
+    ["https://www.nhl.com/devils/news/example", "nhl"],
     ["https://www.mlb.com/scores/2025-07-01", "mlb"],
+    ["https://www.mlb.com/news/example", "mlb"],
     ["https://www.kicker.de/nhl/spieltag", "kicker"],
+    ["https://www.kicker.de/beispiel-1017516/artikel", "kicker"],
+    ["https://www.kicker.de/beispiel/analyse", "kicker"],
+    ["https://www.kicker.de/beispiel/slideshow", "kicker"],
+    ["https://www.kicker.de/news", "kicker"],
+    ["https://www.google.com/search?q=nfl", "google"],
+    ["https://www.google.de/search?q=bundesliga", "google"],
     ["https://sport.bild.de/", "sportbild"],
     ["https://m.sportdaten.sportbild.bild.de/fussball/bundesliga/ergebnisse/", "sportbild"],
     ["https://www.sofascore.com/basketball/2026-08-16", "sofascore"],
@@ -111,13 +141,10 @@ test("matches every supported score surface and rejects nearby pages", () => {
   for (const [url, expected] of supported) assert.equal(policy.adapterId(url), expected, url);
 
   for (const url of [
-    "https://www.espn.com/nba/story/_/id/1/example",
-    "https://www.nba.com/schedule",
-    "https://www.nfl.com/news/example",
-    "https://www.kicker.de/news",
+    "https://www.google.com/",
     "https://www.espncricinfo.com/series/example/full-scorecard",
     "https://www.goal.com/en/news/example",
-    "https://sports.yahoo.com/nfl/scoreboard/",
+    "https://sports.example.com/nba/scoreboard/",
     "https://example.com/scores",
   ]) {
     assert.equal(policy.adapterId(url), null, url);
@@ -129,6 +156,16 @@ test("recognizes only isolated numeric scores", () => {
   for (const score of ["91", "3:2", "12 - 5"]) assert.equal(policy.numericScore(score), true);
   for (const content of ["Final", "0-0 record", "13.04.2026", "Team 91"]) {
     assert.equal(policy.numericScore(content), false);
+  }
+});
+
+test("recognizes NHL team-calendar results without matching dates or start times", () => {
+  const policy = loadPolicy();
+  for (const result of ["W 4-1", "L 3-2 (OT)", "W 2 - 1 (SO)"]) {
+    assert.equal(policy.nhlTeamResult(result), true, result);
+  }
+  for (const content of ["19:30", "Jan 14", "vs.", "3 UTA"]) {
+    assert.equal(policy.nhlTeamResult(content), false, content);
   }
 });
 
@@ -188,10 +225,67 @@ test("ESPN policy covers main cards and the global header strip", () => {
 });
 
 test("Yahoo status scan ignores its own accessibility helpers", () => {
+  assert.match(source, /!element\.hasAttribute\(marker\.accessible\)/);
+  assert.match(source, /Final\(\?:\\s\*\\\/\\s\*/);
+});
+
+test("NFL score lookup skips the topping's inserted accessibility helper", () => {
   assert.match(
     source,
-    /!element\.hasAttribute\(marker\.accessible\)[\s\S]{0,200}\^Final/,
+    /visualScore\?\.hasAttribute\(marker\.accessible\)[\s\S]{0,100}visualScore\.previousElementSibling/,
   );
+});
+
+test("Kicker hides complete subscore holders such as halftime scores", () => {
+  assert.match(source, /scoreHolder--subscore/);
+  assert.match(source, /markHidden\(subscore\)/);
+});
+
+test("dynamic score surfaces only activate after their audited component exists", () => {
+  const policy = loadPolicy();
+  const kicker = policy.adapter("kicker");
+  const google = policy.adapter("google");
+  const nba = policy.adapter("nba");
+  const mlb = policy.adapter("mlb");
+  assert.equal(kicker.detects({ querySelectorAll: () => [] }), false);
+  const kickerHolder = {
+    querySelector: () => ({}),
+    querySelectorAll: () => [{ textContent: "3" }, { textContent: "1" }],
+  };
+  assert.equal(kicker.detects({
+    querySelectorAll: () => [{ querySelector: () => kickerHolder }],
+  }), true);
+  assert.equal(google.detects({ querySelector: () => null, querySelectorAll: () => [] }), false);
+  assert.equal(google.detects({
+    querySelector: (selector) => selector === "#sports-app" ? {} : null,
+    querySelectorAll: (selector) => selector === ".ss-ms-cs" ? [{ textContent: "7" }] : [],
+  }), true);
+  assert.equal(nba.detects({ querySelector: () => null }), false);
+  assert.equal(nba.detects({ querySelector: () => ({}) }), true);
+  assert.equal(mlb.detects({ querySelector: () => null }), false);
+  assert.equal(mlb.detects({ querySelector: () => ({}) }), true);
+});
+
+test("ESPN ignores placeholders and neutralizes shootout status", () => {
+  const espn = loadPolicy().adapter("espn");
+  assert.equal(espn.scoreFilter({ textContent: "-" }), false);
+  assert.equal(espn.scoreFilter({ textContent: "4" }), true);
+  assert.ok(espn.replacements.some(([, pattern, replacement]) => pattern.test("FT-Pens") && replacement === "FT"));
+  assert.ok(espn.replacements.some(([, pattern, replacement]) => pattern.test("Final / 10") && replacement === "Final"));
+  const notePattern = espn.conditionalHidden[0][1];
+  assert.equal(notePattern.test("Preseason"), false);
+  assert.equal(notePattern.test("Doubleheader - Game 1"), false);
+  assert.equal(notePattern.test("NY wins series 4-1"), true);
+});
+
+test("ESPN desktop baseball hides runs without mistaking hits or errors for scores", () => {
+  assert.match(
+    source,
+    /ScoreboardScoreCell_Linescores > \.ScoreboardScoreCell__Value:first-child/,
+  );
+  assert.match(source, /ScoreboardScoreCell__WinnerIcon/);
+  assert.match(source, /Scoreboard__Performers/);
+  assert.match(source, /Media__Caption__Title/);
 });
 
 test("leaving NBA games restores the native score switch", () => {
